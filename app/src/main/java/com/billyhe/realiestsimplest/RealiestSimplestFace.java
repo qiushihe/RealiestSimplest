@@ -24,13 +24,21 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-public class WatchFace extends CanvasWatchFaceService {
+public class RealiestSimplestFace extends CanvasWatchFaceService {
     // Updates rate in milliseconds for interactive mode.
     // We update once a second to advance the second hand.
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1);
 
     // Handler message id for updating the time periodically in interactive mode.
     private static final int MSG_UPDATE_TIME = 0;
+
+    // Style constants.
+    private static final float RIM_RADIUS_PERCENTAGE = 0.9f;
+    private static final float RIM_TEXT_FONT_SIZE = 16f;
+    private static final float RIM_TEXT_PADDING_ANGLE = 5f;
+    private static final float HOUR_HAND_LENGTH_PERCENTAGE = 0.5f;
+    private static final float MINUTE_HAND_LENGTH_PERCENTAGE = 0.7f;
+    private static final float SECOND_HAND_LENGTH_PERCENTAGE = 0.8f;
 
     @Override
     public Engine onCreateEngine() {
@@ -47,10 +55,14 @@ public class WatchFace extends CanvasWatchFaceService {
         private boolean hasRegisteredTimeZoneReceiver = false;
         private boolean isInAmbientMode;
 
+        private float faceWidth;
+        private float faceHeight;
+
         private float centerX;
         private float centerY;
-        private float textCircleRadius;
-        private float textCircleCircumference;
+        private float rimRadius;
+        private float rimCircumference;
+
         private float secondHandLength;
         private float minuteHandLength;
         private float hourHandLength;
@@ -60,7 +72,9 @@ public class WatchFace extends CanvasWatchFaceService {
         private Paint dowPaint;
         private Paint datePaint;
         private Paint handsPaint;
+        private Paint handsAccessoriesPaint;
         private Paint secondHandPaint;
+        private Paint secondHandAccessoriesPaint;
 
         private Path textCircle;
         private Path hourHandPath;
@@ -82,7 +96,12 @@ public class WatchFace extends CanvasWatchFaceService {
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
 
-            setWatchFaceStyle(new WatchFaceStyle.Builder(WatchFace.this).build());
+            setWatchFaceStyle(
+                    new WatchFaceStyle.Builder(RealiestSimplestFace.this)
+                            .setHideStatusBar(true)
+                            .setHideNotificationIndicator(true)
+                            .build()
+            );
 
             calendar = Calendar.getInstance();
             dowFormatter = new SimpleDateFormat("EEE");
@@ -101,7 +120,7 @@ public class WatchFace extends CanvasWatchFaceService {
             dowPaint.setStyle(Paint.Style.FILL_AND_STROKE);
             dowPaint.setColor(Color.WHITE);
             dowPaint.setTypeface(Typeface.MONOSPACE);
-            dowPaint.setTextSize(10f);
+            dowPaint.setTextSize(RIM_TEXT_FONT_SIZE);
             dowPaint.setTextAlign(Paint.Align.RIGHT);
             dowPaint.setAntiAlias(true);
 
@@ -109,7 +128,7 @@ public class WatchFace extends CanvasWatchFaceService {
             datePaint.setStyle(Paint.Style.FILL_AND_STROKE);
             datePaint.setColor(Color.WHITE);
             datePaint.setTypeface(Typeface.MONOSPACE);
-            datePaint.setTextSize(10f);
+            datePaint.setTextSize(RIM_TEXT_FONT_SIZE);
             datePaint.setTextAlign(Paint.Align.LEFT);
             datePaint.setAntiAlias(true);
 
@@ -121,6 +140,16 @@ public class WatchFace extends CanvasWatchFaceService {
             handsPaint.setStrokeCap(Paint.Cap.ROUND);
             handsPaint.setStrokeJoin(Paint.Join.ROUND);
             handsPaint.setPathEffect(new CornerPathEffect(2));
+            handsPaint.setShadowLayer(1, 0, 0, Color.BLACK);
+
+            handsAccessoriesPaint = new Paint();
+            handsAccessoriesPaint.setColor(Color.WHITE);
+            handsAccessoriesPaint.setStyle(Paint.Style.FILL);
+            handsAccessoriesPaint.setStrokeWidth(STROKE_WIDTH);
+            handsAccessoriesPaint.setAntiAlias(true);
+            handsAccessoriesPaint.setStrokeCap(Paint.Cap.ROUND);
+            handsAccessoriesPaint.setStrokeJoin(Paint.Join.ROUND);
+            handsAccessoriesPaint.setPathEffect(new CornerPathEffect(2));
 
             secondHandPaint = new Paint();
             secondHandPaint.setColor(Color.rgb(255, 87, 34));
@@ -130,6 +159,16 @@ public class WatchFace extends CanvasWatchFaceService {
             secondHandPaint.setStrokeCap(Paint.Cap.ROUND);
             secondHandPaint.setStrokeJoin(Paint.Join.ROUND);
             secondHandPaint.setPathEffect(new CornerPathEffect(2));
+            secondHandPaint.setShadowLayer(1, 0, 0, Color.BLACK);
+
+            secondHandAccessoriesPaint = new Paint();
+            secondHandAccessoriesPaint.setColor(Color.rgb(255, 87, 34));
+            secondHandAccessoriesPaint.setStyle(Paint.Style.FILL);
+            secondHandAccessoriesPaint.setStrokeWidth(STROKE_WIDTH);
+            secondHandAccessoriesPaint.setAntiAlias(true);
+            secondHandAccessoriesPaint.setStrokeCap(Paint.Cap.ROUND);
+            secondHandAccessoriesPaint.setStrokeJoin(Paint.Join.ROUND);
+            secondHandAccessoriesPaint.setPathEffect(new CornerPathEffect(2));
 
             textCircle = new Path();
             secondHandPath = new Path();
@@ -167,49 +206,66 @@ public class WatchFace extends CanvasWatchFaceService {
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
 
-            // Find the coordinates of the center point on the screen.
-            centerX = width / 2f;
-            centerY = height / 2f;
+            // Memorize face width/height.
+            this.faceWidth = width;
+            this.faceHeight = height;
 
-            // Calculate text circle parameters.
-            textCircleRadius = centerX - 10;
-            textCircleCircumference  = (float)(2 * Math.PI * textCircleRadius);
+            // Calculate surface element parameters.
+            this.calculateSurfaceParameters();
+        }
+
+        private void calculateSurfaceParameters() {
+            // Find the coordinates of the center point on the screen.
+            this.centerX = this.faceWidth / 2f;
+            this.centerY = this.faceHeight / 2f;
+
+            // Calculate rim parameters.
+            this.rimRadius = this.faceWidth / 2 * RealiestSimplestFace.RIM_RADIUS_PERCENTAGE;
+            this.rimCircumference =  (float)(2 * Math.PI * this.rimRadius);
 
             // Calculate lengths of different hands based on watch screen size.
-            hourHandLength = centerX * 0.5f;
-            minuteHandLength = centerX * 0.7f;
-            secondHandLength = centerX * 0.8f;
+            this.hourHandLength = this.centerX * RealiestSimplestFace.HOUR_HAND_LENGTH_PERCENTAGE;
+            this.minuteHandLength = this.centerX * RealiestSimplestFace.MINUTE_HAND_LENGTH_PERCENTAGE;
+            this.secondHandLength = this.centerX * RealiestSimplestFace.SECOND_HAND_LENGTH_PERCENTAGE;
 
             // (Re)build text path.
             textCircle.reset();
-            textCircle.addCircle(centerX, centerY, textCircleRadius, Path.Direction.CW);
+            textCircle.addCircle(centerX, centerY, this.rimRadius, Path.Direction.CW);
 
             // (Re)build hour hand path.
             hourHandPath.reset();
-            hourHandPath.moveTo(centerX, centerY - hourHandLength);
+            hourHandPath.moveTo(centerX,     centerY - hourHandLength);
             hourHandPath.lineTo(centerX + 1, centerY - hourHandLength);
-            hourHandPath.lineTo(centerX + 3, centerY);
-            hourHandPath.lineTo(centerX - 3, centerY);
+            hourHandPath.lineTo(centerX + 3, centerY - hourHandLength + 3);
+            hourHandPath.lineTo(centerX + 5, centerY);
+            hourHandPath.lineTo(centerX - 5, centerY);
+            hourHandPath.lineTo(centerX - 3, centerY - hourHandLength + 3);
             hourHandPath.lineTo(centerX - 1, centerY - hourHandLength);
-            hourHandPath.lineTo(centerX, centerY - hourHandLength);
+            hourHandPath.lineTo(centerX,     centerY - hourHandLength);
 
             // (Re)build minute hand path.
             minuteHandPath.reset();
-            minuteHandPath.moveTo(centerX, centerY - minuteHandLength);
+            minuteHandPath.moveTo(centerX,     centerY - minuteHandLength);
             minuteHandPath.lineTo(centerX + 1, centerY - minuteHandLength);
-            minuteHandPath.lineTo(centerX + 3, centerY);
-            minuteHandPath.lineTo(centerX - 3, centerY);
+            minuteHandPath.lineTo(centerX + 2, centerY - minuteHandLength + 2);
+            minuteHandPath.lineTo(centerX + 4, centerY);
+            minuteHandPath.lineTo(centerX - 4, centerY);
+            minuteHandPath.lineTo(centerX - 2, centerY - minuteHandLength + 2);
             minuteHandPath.lineTo(centerX - 1, centerY - minuteHandLength);
-            minuteHandPath.lineTo(centerX, centerY - minuteHandLength);
+            minuteHandPath.lineTo(centerX,     centerY - minuteHandLength);
 
             // (Re)build second hand path.
             secondHandPath.reset();
-            secondHandPath.moveTo(centerX, centerY - secondHandLength);
+            secondHandPath.moveTo(centerX,     centerY - secondHandLength);
             secondHandPath.lineTo(centerX + 1, centerY - secondHandLength);
-            secondHandPath.lineTo(centerX + 2, centerY + 40);
-            secondHandPath.lineTo(centerX - 2, centerY + 40);
+            secondHandPath.lineTo(centerX + 1, centerY - secondHandLength + 1);
+            secondHandPath.lineTo(centerX + 2, centerY);
+            secondHandPath.lineTo(centerX + 1, centerY + 40);
+            secondHandPath.lineTo(centerX - 1, centerY + 40);
+            secondHandPath.lineTo(centerX - 2, centerY);
+            secondHandPath.lineTo(centerX - 1, centerY - secondHandLength + 1);
             secondHandPath.lineTo(centerX - 1, centerY - secondHandLength);
-            secondHandPath.lineTo(centerX, centerY - secondHandLength);
+            secondHandPath.lineTo(centerX,     centerY - secondHandLength);
         }
 
         @Override
@@ -229,22 +285,22 @@ public class WatchFace extends CanvasWatchFaceService {
             canvas.save();
             for (int i = 0; i < 12; i++) {
                 canvas.rotate(360 / 12, centerX, centerY);
-                canvas.drawCircle(centerX, 10, 2, foregroundPaint);
+                canvas.drawCircle(centerX, this.centerY - this.rimRadius, 3, foregroundPaint);
             }
             canvas.restore();
 
-            // Draw status texts.
-            Date now = calendar.getTime();
-            String dow = dowFormatter.format(now).toUpperCase();
-            String date = dateFormatter.format(now).toUpperCase();
+            // Only draw status texts when not in ambient mode.
+            if (!isInAmbientMode) {
+                Date now = calendar.getTime();
+                String dow = dowFormatter.format(now).toUpperCase();
+                String date = dateFormatter.format(now).toUpperCase();
 
-            Rect textBounds = new Rect();
-
-            dowPaint.getTextBounds(dow, 0, 1, textBounds);
-            canvas.drawTextOnPath(dow, textCircle, -(textCircleCircumference * ((90f + 3f) / 360f)), (textBounds.height() / 2f), dowPaint);
-
-            datePaint.getTextBounds(date, 0, 1, textBounds);
-            canvas.drawTextOnPath(date, textCircle, (textCircleCircumference * ((270f + 3f) / 360f)), (textBounds.height() / 2f), datePaint);
+                Rect textBounds = new Rect();
+                dowPaint.getTextBounds(dow, 0, 1, textBounds);
+                canvas.drawTextOnPath(dow, textCircle, -(this.rimCircumference * ((90f + RealiestSimplestFace.RIM_TEXT_PADDING_ANGLE) / 360f)), (textBounds.height() / 2f), dowPaint);
+                datePaint.getTextBounds(date, 0, 1, textBounds);
+                canvas.drawTextOnPath(date, textCircle, (this.rimCircumference * ((270f + RealiestSimplestFace.RIM_TEXT_PADDING_ANGLE) / 360f)), (textBounds.height() / 2f), datePaint);
+            }
 
             // These calculations reflect the rotation in degrees per unit of time.
             // For example: 360 / 60 = 6 and 360 / 12 = 30
@@ -266,8 +322,8 @@ public class WatchFace extends CanvasWatchFaceService {
             canvas.drawPath(minuteHandPath, handsPaint);
 
             // Draw center circle.
-            canvas.drawCircle(centerX, centerY, 6, handsPaint);
-            canvas.drawCircle(centerX, centerY, 3, backgroundPaint);
+            canvas.drawCircle(centerX, centerY, 12, handsAccessoriesPaint);
+            canvas.drawCircle(centerX, centerY, 4, backgroundPaint);
 
             // Only draw second hand when not in ambient mode.
             if (!isInAmbientMode) {
@@ -275,8 +331,8 @@ public class WatchFace extends CanvasWatchFaceService {
                 canvas.drawPath(secondHandPath, secondHandPaint);
 
                 // Draw second hand's own center circle.
-                canvas.drawCircle(centerX, centerY, 5, secondHandPaint);
-                canvas.drawCircle(centerX, centerY, 2, backgroundPaint);
+                canvas.drawCircle(centerX, centerY, 8, secondHandAccessoriesPaint);
+                canvas.drawCircle(centerX, centerY, 4, backgroundPaint);
             }
 
             // Restore the canvas' original orientation.
@@ -308,7 +364,7 @@ public class WatchFace extends CanvasWatchFaceService {
 
             hasRegisteredTimeZoneReceiver = true;
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
-            WatchFace.this.registerReceiver(timeZoneReceiver, filter);
+            RealiestSimplestFace.this.registerReceiver(timeZoneReceiver, filter);
         }
 
         private void unregisterReceiver() {
@@ -317,7 +373,7 @@ public class WatchFace extends CanvasWatchFaceService {
             }
 
             hasRegisteredTimeZoneReceiver = false;
-            WatchFace.this.unregisterReceiver(timeZoneReceiver);
+            RealiestSimplestFace.this.unregisterReceiver(timeZoneReceiver);
         }
 
         // Starts/stops the updateTimeHandler timer based on the state of the watch face.
@@ -346,15 +402,15 @@ public class WatchFace extends CanvasWatchFaceService {
     }
 
     private static class EngineHandler extends Handler {
-        private final WeakReference<WatchFace.Engine> engineRef;
+        private final WeakReference<RealiestSimplestFace.Engine> engineRef;
 
-        public EngineHandler(WatchFace.Engine reference) {
+        public EngineHandler(RealiestSimplestFace.Engine reference) {
             engineRef = new WeakReference<>(reference);
         }
 
         @Override
         public void handleMessage(Message msg) {
-            WatchFace.Engine engine = engineRef.get();
+            RealiestSimplestFace.Engine engine = engineRef.get();
             if (engine != null) {
                 switch (msg.what) {
                     case MSG_UPDATE_TIME:

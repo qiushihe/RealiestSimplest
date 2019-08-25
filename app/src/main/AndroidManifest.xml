@@ -21,7 +21,7 @@
             android:value="true" />
 
         <service
-            android:name=".WatchFace"
+            android:name=".RealiestSimplestFace"
             android:label="@string/watch_face_name"
             android:permission="android.permission.BIND_WALLPAPER">
             <meta-data
