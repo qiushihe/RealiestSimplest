@@ -33,12 +33,13 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
     private static final int MSG_UPDATE_TIME = 0;
 
     // Style constants.
-    private static final float RIM_RADIUS_PERCENTAGE = 0.9f;
+    private static final float RIM_RADIUS_PERCENTAGE = 0.95f;
     private static final float RIM_TEXT_FONT_SIZE = 16f;
     private static final float RIM_TEXT_PADDING_ANGLE = 5f;
-    private static final float HOUR_HAND_LENGTH_PERCENTAGE = 0.5f;
-    private static final float MINUTE_HAND_LENGTH_PERCENTAGE = 0.7f;
-    private static final float SECOND_HAND_LENGTH_PERCENTAGE = 0.8f;
+    private static final float HOUR_HAND_LENGTH_PERCENTAGE = 0.60f;
+    private static final float MINUTE_HAND_LENGTH_PERCENTAGE = 0.80f;
+    private static final float SECOND_HAND_LENGTH_PERCENTAGE = 0.90f;
+    private static final float SECOND_HAND_TAIL_PERCENTAGE = 0.3f;
 
     @Override
     public Engine onCreateEngine() {
@@ -63,18 +64,17 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
         private float rimRadius;
         private float rimCircumference;
 
-        private float secondHandLength;
-        private float minuteHandLength;
         private float hourHandLength;
+        private float minuteHandLength;
+        private float secondHandLength;
+        private float secondHandTailLength;
 
         private Paint backgroundPaint;
         private Paint foregroundPaint;
         private Paint dowPaint;
         private Paint datePaint;
         private Paint handsPaint;
-        private Paint handsAccessoriesPaint;
         private Paint secondHandPaint;
-        private Paint secondHandAccessoriesPaint;
 
         private Path textCircle;
         private Path hourHandPath;
@@ -114,7 +114,6 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
             foregroundPaint.setColor(Color.WHITE);
             foregroundPaint.setStrokeWidth(STROKE_WIDTH);
             foregroundPaint.setAntiAlias(true);
-            foregroundPaint.setStrokeCap(Paint.Cap.ROUND);
 
             dowPaint = new Paint();
             dowPaint.setStyle(Paint.Style.FILL_AND_STROKE);
@@ -142,33 +141,12 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
             handsPaint.setPathEffect(new CornerPathEffect(2));
             handsPaint.setShadowLayer(1, 0, 0, Color.BLACK);
 
-            handsAccessoriesPaint = new Paint();
-            handsAccessoriesPaint.setColor(Color.WHITE);
-            handsAccessoriesPaint.setStyle(Paint.Style.FILL);
-            handsAccessoriesPaint.setStrokeWidth(STROKE_WIDTH);
-            handsAccessoriesPaint.setAntiAlias(true);
-            handsAccessoriesPaint.setStrokeCap(Paint.Cap.ROUND);
-            handsAccessoriesPaint.setStrokeJoin(Paint.Join.ROUND);
-            handsAccessoriesPaint.setPathEffect(new CornerPathEffect(2));
-
             secondHandPaint = new Paint();
             secondHandPaint.setColor(Color.rgb(255, 87, 34));
             secondHandPaint.setStyle(Paint.Style.FILL);
             secondHandPaint.setStrokeWidth(STROKE_WIDTH);
             secondHandPaint.setAntiAlias(true);
-            secondHandPaint.setStrokeCap(Paint.Cap.ROUND);
-            secondHandPaint.setStrokeJoin(Paint.Join.ROUND);
-            secondHandPaint.setPathEffect(new CornerPathEffect(2));
             secondHandPaint.setShadowLayer(1, 0, 0, Color.BLACK);
-
-            secondHandAccessoriesPaint = new Paint();
-            secondHandAccessoriesPaint.setColor(Color.rgb(255, 87, 34));
-            secondHandAccessoriesPaint.setStyle(Paint.Style.FILL);
-            secondHandAccessoriesPaint.setStrokeWidth(STROKE_WIDTH);
-            secondHandAccessoriesPaint.setAntiAlias(true);
-            secondHandAccessoriesPaint.setStrokeCap(Paint.Cap.ROUND);
-            secondHandAccessoriesPaint.setStrokeJoin(Paint.Join.ROUND);
-            secondHandAccessoriesPaint.setPathEffect(new CornerPathEffect(2));
 
             textCircle = new Path();
             secondHandPath = new Path();
@@ -224,9 +202,10 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
             this.rimCircumference =  (float)(2 * Math.PI * this.rimRadius);
 
             // Calculate lengths of different hands based on watch screen size.
-            this.hourHandLength = this.centerX * RealiestSimplestFace.HOUR_HAND_LENGTH_PERCENTAGE;
-            this.minuteHandLength = this.centerX * RealiestSimplestFace.MINUTE_HAND_LENGTH_PERCENTAGE;
-            this.secondHandLength = this.centerX * RealiestSimplestFace.SECOND_HAND_LENGTH_PERCENTAGE;
+            this.hourHandLength = this.rimRadius * RealiestSimplestFace.HOUR_HAND_LENGTH_PERCENTAGE;
+            this.minuteHandLength = this.rimRadius * RealiestSimplestFace.MINUTE_HAND_LENGTH_PERCENTAGE;
+            this.secondHandLength = this.rimRadius * RealiestSimplestFace.SECOND_HAND_LENGTH_PERCENTAGE;
+            this.secondHandTailLength = this.rimRadius * SECOND_HAND_TAIL_PERCENTAGE;
 
             // (Re)build text path.
             textCircle.reset();
@@ -234,38 +213,41 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
 
             // (Re)build hour hand path.
             hourHandPath.reset();
-            hourHandPath.moveTo(centerX,     centerY - hourHandLength);
-            hourHandPath.lineTo(centerX + 1, centerY - hourHandLength);
+            hourHandPath.moveTo(centerX, centerY - hourHandLength);
+            hourHandPath.lineTo(centerX + 1, centerY - hourHandLength + 1);
             hourHandPath.lineTo(centerX + 3, centerY - hourHandLength + 3);
             hourHandPath.lineTo(centerX + 5, centerY);
             hourHandPath.lineTo(centerX - 5, centerY);
             hourHandPath.lineTo(centerX - 3, centerY - hourHandLength + 3);
-            hourHandPath.lineTo(centerX - 1, centerY - hourHandLength);
-            hourHandPath.lineTo(centerX,     centerY - hourHandLength);
+            hourHandPath.lineTo(centerX - 1, centerY - hourHandLength + 1);
+            hourHandPath.lineTo(centerX, centerY - hourHandLength);
+            hourHandPath.addCircle(centerX, centerY, 12, Path.Direction.CW);
 
             // (Re)build minute hand path.
             minuteHandPath.reset();
-            minuteHandPath.moveTo(centerX,     centerY - minuteHandLength);
-            minuteHandPath.lineTo(centerX + 1, centerY - minuteHandLength);
+            minuteHandPath.moveTo(centerX, centerY - minuteHandLength);
+            minuteHandPath.lineTo(centerX + 1, centerY - minuteHandLength + 1);
             minuteHandPath.lineTo(centerX + 2, centerY - minuteHandLength + 2);
             minuteHandPath.lineTo(centerX + 4, centerY);
             minuteHandPath.lineTo(centerX - 4, centerY);
             minuteHandPath.lineTo(centerX - 2, centerY - minuteHandLength + 2);
-            minuteHandPath.lineTo(centerX - 1, centerY - minuteHandLength);
-            minuteHandPath.lineTo(centerX,     centerY - minuteHandLength);
+            minuteHandPath.lineTo(centerX - 1, centerY - minuteHandLength + 1);
+            minuteHandPath.lineTo(centerX, centerY - minuteHandLength);
+            minuteHandPath.addCircle(centerX, centerY, 12, Path.Direction.CW);
 
             // (Re)build second hand path.
             secondHandPath.reset();
-            secondHandPath.moveTo(centerX,     centerY - secondHandLength);
-            secondHandPath.lineTo(centerX + 1, centerY - secondHandLength);
+            secondHandPath.moveTo(centerX, centerY - secondHandLength);
+            secondHandPath.lineTo(centerX + 1, centerY - secondHandLength + 1);
             secondHandPath.lineTo(centerX + 1, centerY - secondHandLength + 1);
             secondHandPath.lineTo(centerX + 2, centerY);
-            secondHandPath.lineTo(centerX + 1, centerY + 40);
-            secondHandPath.lineTo(centerX - 1, centerY + 40);
+            secondHandPath.lineTo(centerX + 1, centerY + secondHandTailLength);
+            secondHandPath.lineTo(centerX - 1, centerY + secondHandTailLength);
             secondHandPath.lineTo(centerX - 2, centerY);
             secondHandPath.lineTo(centerX - 1, centerY - secondHandLength + 1);
-            secondHandPath.lineTo(centerX - 1, centerY - secondHandLength);
-            secondHandPath.lineTo(centerX,     centerY - secondHandLength);
+            secondHandPath.lineTo(centerX - 1, centerY - secondHandLength + 1);
+            secondHandPath.lineTo(centerX, centerY - secondHandLength);
+            secondHandPath.addCircle(centerX, centerY, 8, Path.Direction.CW);
         }
 
         @Override
@@ -321,18 +303,10 @@ public class RealiestSimplestFace extends CanvasWatchFaceService {
             canvas.rotate(minutesRotation - hoursRotation, centerX, centerY);
             canvas.drawPath(minuteHandPath, handsPaint);
 
-            // Draw center circle.
-            canvas.drawCircle(centerX, centerY, 12, handsAccessoriesPaint);
-            canvas.drawCircle(centerX, centerY, 4, backgroundPaint);
-
             // Only draw second hand when not in ambient mode.
             if (!isInAmbientMode) {
                 canvas.rotate(secondsRotation - minutesRotation, centerX, centerY);
                 canvas.drawPath(secondHandPath, secondHandPaint);
-
-                // Draw second hand's own center circle.
-                canvas.drawCircle(centerX, centerY, 8, secondHandAccessoriesPaint);
-                canvas.drawCircle(centerX, centerY, 4, backgroundPaint);
             }
 
             // Restore the canvas' original orientation.
