@@ -28,4 +28,6 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.0.0'
     implementation 'androidx.palette:palette:1.0.0'
     compileOnly 'com.google.android.wearable:wearable:2.4.0'
+    compileOnly 'org.projectlombok:lombok:1.18.8'
+    annotationProcessor 'org.projectlombok:lombok:1.18.8'
 }
